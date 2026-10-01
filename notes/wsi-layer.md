@@ -16,7 +16,7 @@ the in-rootfs `bash -lc` on every entry — no on-disk profile.d state:
 
 ```
 WAYLAND_DISPLAY=/usr/share/tawc/wayland-0
-XDG_RUNTIME_DIR=/tmp
+XDG_RUNTIME_DIR=/run/tawc-runtime
 LD_LIBRARY_PATH=/usr/lib/hybris/gl-shims:/usr/lib/hybris
 HYBRIS_EGLPLATFORM=wayland
 DISPLAY=:0

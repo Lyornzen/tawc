@@ -509,13 +509,46 @@ uninstall again.
 
 `/tmp` in every install is a plain flash directory (no init in the
 rootfs, so nothing clears it; a tmpfs is unreachable rootlessly), and
-[RootfsEnv]'s `TMPDIR=/tmp` + `XDG_RUNTIME_DIR=/tmp` make it
-accumulate runtime sockets and gpg-agent state across sessions and
-reboots. `RootfsTmpSweeper` (run from `TawcApplication`'s startup
+[RootfsEnv]'s `TMPDIR=/tmp` makes it accumulate temporary files and
+gpg-agent state across sessions and reboots. (`XDG_RUNTIME_DIR` points
+at the private `/run/tawc-runtime` instead — see "Rootfs provisioning"
+below — so the session bus is not in sweep range.) `RootfsTmpSweeper` (run from `TawcApplication`'s startup
 thread, unit-tested in `RootfsTmpSweeperTest`) age-sweeps it; the
 design constraints — why age-based rather than a full clear, why at
 app start, the mtime-only residual risk for long-lived sockets, what
 is never touched — live in its class kdoc.
+
+## Rootfs provisioning
+
+Two files every rootfs needs but no distro bootstrap ships are written
+by `RootfsProvisioning` — at install time (from [Installer.install],
+right after `Distro.configure`) and again from `TawcApplication`'s
+startup thread for installs that predate the code (`ensureAll`, which
+skips installs mid-operation and methods this build doesn't ship):
+
+| Path | Why |
+|---|---|
+| `/etc/machine-id` | Without it dbus refuses to start a session bus ("Cannot spawn a message bus without a machine-id"), taking dconf/GTK settings with it. ALARM ships the file **zero-length**, and `dbus-uuidgen --ensure` only creates a *missing* file, so it does not repair that. |
+| `/run/tawc-runtime` (0700) | `XDG_RUNTIME_DIR`. `/tmp` is 1777 and shared, so dbus rejected it ("owned by uid 0, not our uid") and the session bus never started. Must be a stable per-install path so every spawn of one distro agrees on `$XDG_RUNTIME_DIR/bus`. |
+
+Both writes go through `InstallationMethod.runOutside` (app-uid shell
+for tawcroot/proot, `su` for chroot — a chroot rootfs is uid-0-owned).
+An existing valid machine-id is never rewritten: changing it resets
+D-Bus, at-spi and dconf state for that rootfs. The id is written
+*through* a symlink when `/etc/machine-id` is one, because Debian and
+ALARM disagree about which of it and `/var/lib/dbus/machine-id` is the
+real file.
+
+Both steps are idempotent and short-circuit on a cheap `stat`/read when
+the rootfs is already in shape, so the app-start sweep does not spawn a
+shell per install. Failures are logged, never fatal: a rootfs without
+these files still works, with a dead session bus.
+
+tawcroot's fake identity is the reason this had to be fixed app-side
+rather than by the guest: `stat` there always reports uid 0, so a
+dropped (non-root) guest user can never make a directory look like it
+owns it, and dbus's ownership check can only pass for the default
+fake-root session. See notes/tawcroot/path-translation.md.
 
 ## Mount lifecycle
 

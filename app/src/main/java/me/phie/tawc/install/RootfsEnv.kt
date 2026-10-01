@@ -45,6 +45,18 @@ internal object RootfsEnv {
      * `~` expands to in the manage-binds guest-path field. */
     const val GUEST_HOME = "/root"
 
+    /**
+     * In-rootfs private directory exported as `XDG_RUNTIME_DIR`.
+     *
+     * Deliberately not `/tmp`: that is 1777 and shared, and dbus refuses
+     * to put its socket in a directory that is not private ("owned by
+     * uid 0, not our uid"), so the session bus — and with it dconf/GTK
+     * settings — never started. [RootfsProvisioning] creates it 0700 in
+     * every rootfs. It also lives outside `/tmp` so
+     * [RootfsTmpSweeper] can't age it away under a long-lived session.
+     */
+    const val GUEST_RUNTIME_DIR = "/run/tawc-runtime"
+
     fun build(method: Method): Map<String, String> =
         build(method, Settings.graphicsBackend)
 
@@ -76,7 +88,7 @@ internal object RootfsEnv {
         // clients honour absolute WAYLAND_DISPLAY directly, no /tmp
         // symlink needed.
         put("WAYLAND_DISPLAY", "/usr/share/tawc/wayland-0")
-        put("XDG_RUNTIME_DIR", "/tmp")
+        put("XDG_RUNTIME_DIR", GUEST_RUNTIME_DIR)
         when (backend) {
             GraphicsBackend.LIBHYBRIS -> {
                 // libhybris is laid down by [TawcInstaller] /

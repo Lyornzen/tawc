@@ -5,6 +5,7 @@ import android.util.Log
 import me.phie.tawc.compositor.CompositorService
 import me.phie.tawc.install.BootstrapCache
 import me.phie.tawc.install.InstallationStore
+import me.phie.tawc.install.RootfsProvisioning
 import me.phie.tawc.install.RootfsTmpSweeper
 import me.phie.tawc.install.TawcInstaller
 import me.phie.tawc.ops.OperationsNotificationCenter
@@ -86,6 +87,13 @@ class TawcApplication : Application() {
                 RootfsTmpSweeper.sweepAll(InstallationStore(this))
             } catch (t: Throwable) {
                 Log.w(TAG, "rootfs /tmp sweep failed", t)
+            }
+            // Machine-id + private XDG_RUNTIME_DIR for every install,
+            // including ones created before this ran at install time.
+            try {
+                RootfsProvisioning.ensureAll(this, InstallationStore(this))
+            } catch (t: Throwable) {
+                Log.w(TAG, "rootfs provisioning failed", t)
             }
         }
         // Dev-only exec broker and its action handlers. [DevHooks] has

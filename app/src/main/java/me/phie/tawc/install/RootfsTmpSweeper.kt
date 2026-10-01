@@ -13,9 +13,10 @@ import java.nio.file.attribute.BasicFileAttributes
  *
  * `/tmp` in every install method is a plain directory on flash, not
  * tmpfs — the rootfs has no init, so nothing ever clears it, and
- * [RootfsEnv] points both `TMPDIR` and `XDG_RUNTIME_DIR` at it, so
- * runtime sockets and gpg-agent state accumulate against app storage
- * across sessions and reboots. A real tmpfs is not reachable
+ * [RootfsEnv] points `TMPDIR` at it, so temporary files and gpg-agent
+ * state accumulate against app storage across sessions and reboots.
+ * (`XDG_RUNTIME_DIR` used to live here too; it is now the private
+ * [RootfsEnv.GUEST_RUNTIME_DIR], which this sweep never touches.) A real tmpfs is not reachable
  * rootlessly (`mount()` needs CAP_SYS_ADMIN, SELinux blocks user
  * namespaces for untrusted apps, no app-writable tmpfs to bind from),
  * so we sweep instead.

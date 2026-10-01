@@ -203,6 +203,11 @@ class Installer(
         // [me.phie.tawc.TawcApplication.onCreate] no-ops on subsequent
         // app starts until an APK upgrade bumps the stamp.
         TawcInstaller.installInto(context, store, id, log)
+        // Files no bootstrap ships: /etc/machine-id and the private
+        // XDG_RUNTIME_DIR. Best-effort — a rootfs without them still
+        // works, just with a dead session bus.
+        runCatching { RootfsProvisioning.ensure(method, rootfsPath, log) }
+            .onFailure { log("provisioning: ${'$'}{it.message}") }
 
         checkCancel()
         // Stage 4: package-manager bootstrap. State stays INSTALLING

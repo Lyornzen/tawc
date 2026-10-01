@@ -181,9 +181,10 @@ format is not specified, but TAWC should specify it anyway so the Android bridge
 and logs have a stable contract.
 
 `pipewire-pulse` should listen on an in-rootfs Unix socket under
-`$XDG_RUNTIME_DIR/pulse/native` or another explicit path. `RootfsEnv` currently
-sets `XDG_RUNTIME_DIR=/tmp`, so the first implementation can use `/tmp` unless
-we introduce a more private per-install runtime directory.
+`$XDG_RUNTIME_DIR/pulse/native` or another explicit path. `RootfsEnv` sets
+`XDG_RUNTIME_DIR` to the private `/run/tawc-runtime` (created 0700 by
+`RootfsProvisioning`, see notes/installation.md "Rootfs provisioning"), so the
+socket lands there; nothing needs `/tmp`.
 
 Rootfs env additions will likely include:
 
