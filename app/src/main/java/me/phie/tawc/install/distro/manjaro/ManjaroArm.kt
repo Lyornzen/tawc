@@ -128,6 +128,10 @@ internal object ManjaroArm : Distro {
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
+        // No mirrorRegions: Manjaro ARM's list is not regional, and the
+        // `arm-testing/` path segment carries release policy a hostname
+        // swap would break.
+        mirrorRegion: String?,
     ) = ArchPacmanCommon.configure(method, rootfs, MIRROR_LIST, IGNORED_PACKAGES, mirrorProxy, log)
 
     override fun initPackageManager(method: InstallationMethod, rootfs: String, log: (String) -> Unit) =

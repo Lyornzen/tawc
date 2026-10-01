@@ -168,13 +168,53 @@ interface Distro {
      *   through it via [MirrorProxy.wrap]. Verification endpoints
      *   (`.sig` and friends) are **not** proxied here — see
      *   `notes/cache-proxy.md`.
+     * @param mirrorRegion persisted [Installation.mirrorRegion] id; see
+     *   [resolveMirrorRegion]. Ignored by distros with no [mirrorRegions].
      */
     fun configure(
         method: InstallationMethod,
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
+        mirrorRegion: String? = null,
     )
+
+    /**
+     * Package-mirror locations the settings screen offers for this
+     * distro, in display order. Empty means the distro has no
+     * user-selectable mirror set (no regional repos, or its paths carry
+     * release-policy a hostname swap would break); the settings row is
+     * then hidden.
+     */
+    val mirrorRegions: List<MirrorRegion> get() = emptyList()
+
+    /**
+     * Resolve a persisted [Installation.mirrorRegion] id. `null` (the
+     * user never picked) and ids this build doesn't know both mean "the
+     * distro's built-in default", so metadata written by a newer build
+     * can't break an older one.
+     */
+    fun resolveMirrorRegion(id: String?): MirrorRegion? =
+        id?.let { wanted -> mirrorRegions.firstOrNull { it.id == wanted } }
+
+    /**
+     * Rewrite the package-mirror config of an already-installed
+     * [rootfs] for [mirrorRegion] (`null` = the built-in default).
+     * Install-time configuration goes through [configure]; this is the
+     * settings-driven path, and the only way a region picked after the
+     * install takes effect — `configure` never runs again for an
+     * existing rootfs (notes/installation.md "Upgrade policy").
+     *
+     * Distros without selectable mirrors do nothing. Throws on failure
+     * so the caller can report it.
+     */
+    fun configureMirrors(
+        method: InstallationMethod,
+        rootfs: String,
+        mirrorRegion: String?,
+        log: (String) -> Unit,
+    ) {
+    }
 
     /**
      * Bootstrap the package manager inside the chroot at [rootfs]

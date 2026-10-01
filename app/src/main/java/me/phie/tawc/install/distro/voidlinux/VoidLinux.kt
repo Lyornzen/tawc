@@ -63,6 +63,9 @@ internal sealed class VoidLinux(
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
+        // No mirrorRegions yet: Void's xbps repository line is a single
+        // URL, and its Fastly CDN mirror is already geo-routed.
+        mirrorRegion: String?,
     ) = VoidCommon.configure(method, rootfs, linuxArch, mirrorProxy, log)
 
     final override fun initPackageManager(method: InstallationMethod, rootfs: String, log: (String) -> Unit) =

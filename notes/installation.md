@@ -1256,13 +1256,41 @@ transaction (e.g. `bubblewrap-0.11.2-1-aarch64.pkg.tar.xz`). With one
 Server line pacman has no fallback and the whole transaction aborts;
 with several explicit mirrors it skips past the stale one to the next.
 
-The list lives in `ArchLinuxArm.MIRROR_LIST` and is now HTTPS-first:
-`fl.us.` and `ca.us.` (the two ALARM mirrors with valid certs covering
-their own hostnames) come first, then the geo-redirector and a few
-regional HTTP mirrors as fallback. Pacman package signatures are
-verified against the populated keyring (no more `SigLevel = Never`),
+The list lives in `ArchLinuxArm.DEFAULT_MIRROR_BASES` and is now
+HTTPS-first: `fl.us.` and `ca.us.` (the two ALARM mirrors with valid
+certs covering their own hostnames) come first, then the geo-redirector
+and a few regional HTTP mirrors as fallback. Pacman package signatures
+are verified against the populated keyring (no more `SigLevel = Never`),
 so HTTP for the fallback mirrors is defense-in-depth missing rather
 than a hole. See *Bootstrap integrity* for the load-bearing rules.
+
+### User-selectable mirror region
+
+Settings → distro card → *Package mirror* lets the user replace that
+default list with a built-in regional preset (`MirrorRegions`), for
+networks where the geo-redirector's choice is slow or blocked. Presets
+are data only: id + label + ordered mirror bases, and the distro owns
+the repository path suffix (`$arch/$repo` for ALARM, `$repo/os/$arch`
+for Arch x86_64) so both flavours share `ArchPacmanCommon.serverLines`.
+
+- The choice is per-install (`Installation.mirrorRegion`); `null` means
+  the default list, so an install that never opens the setting writes
+  the exact same mirrorlist as before.
+- `Distro.configure` runs once per install (*Upgrade policy*), so
+  changing the setting calls `Distro.configureMirrors` instead: it
+  rewrites `<rootfs>/etc/pacman.d/mirrorlist` through a temp file +
+  rename via `runOutside` (app-uid shell for tawcroot/proot, `su` for
+  chroot) and only then persists the choice.
+- Regions are Arch-only today. Manjaro ARM declares none (its
+  `arm-testing/` path is release policy, not a hostname swap), Debian
+  and Void none either (both sit behind geo-routed CDNs). The settings
+  row is hidden whenever a distro has no presets.
+- Presets list only hosts verified to serve the matching tree; a dead
+  first entry costs every user a round trip on every transaction.
+- The bootstrap tarball is **not** affected: it always comes from the
+  fixed host in the distro's `TarballBootstrap` (ALARM's `.sig` lives
+  next to it, and only `fl.us`/`ca.us` carry a valid cert). A region
+  pick speeds up package installs, not the initial download.
 
 ## Android 14 FGS rules and the broker action path
 

@@ -1,0 +1,109 @@
+package me.phie.tawc.install.distro
+
+/**
+ * One user-selectable package-mirror location (settings → distro card).
+ *
+ * [servers] are mirror base URLs in priority order. Pacman walks a
+ * mirrorlist top to bottom and falls through to the next entry when one
+ * 404s, so a preset lists several hosts rather than a single "best"
+ * one — a stale regional mirror otherwise aborts a whole transaction
+ * mid-sync. The repository path after the base differs per repo layout
+ * (`$arch/$repo` for ALARM, `$repo/os/$arch` for Arch x86_64), so the
+ * distro owns that suffix and this type only carries the bases.
+ *
+ * [id] is persisted in `metadata.json` (`Installation.mirrorRegion`), so
+ * it is a frozen value: relabel freely, never rename. `null` there means
+ * the distro's built-in default list — the same behaviour as before this
+ * setting existed.
+ */
+data class MirrorRegion(
+    val id: String,
+    val label: String,
+    val servers: List<String>,
+)
+
+/**
+ * Built-in mirror presets, grouped by repository layout (ALARM serves a
+ * different tree from Arch x86_64, and a host is rarely good for both).
+ *
+ * Only hosts verified to still serve the matching tree are listed —
+ * checked with a `core.db` / `core/os/x86_64/core.db` fetch at the time
+ * of writing. Keep that rule when adding entries: a dead first entry
+ * costs every user a round trip on every transaction. Note that ALARM's
+ * regional hosts are plain `http://`: only `fl.us` and `ca.us` carry a
+ * certificate valid for their own hostname, and pacman verifies package
+ * signatures independently of transport (see `ArchLinuxArm`'s default
+ * list).
+ */
+internal object MirrorRegions {
+
+    /** Presets for Arch Linux ARM (`aarch64`). */
+    val archLinuxArm: List<MirrorRegion> = listOf(
+        MirrorRegion(
+            "cn",
+            "China",
+            listOf(
+                "https://mirrors.tuna.tsinghua.edu.cn/archlinuxarm",
+                "https://mirrors.ustc.edu.cn/archlinuxarm",
+                "https://mirror.sjtu.edu.cn/archlinuxarm",
+                "https://mirrors.nju.edu.cn/archlinuxarm",
+                "https://mirrors.bfsu.edu.cn/archlinuxarm",
+                "https://mirror.iscas.ac.cn/archlinuxarm",
+                "https://mirrors.cernet.edu.cn/archlinuxarm",
+            ),
+        ),
+        MirrorRegion("de", "Germany", listOf(
+            "http://de.mirror.archlinuxarm.org",
+            "http://de3.mirror.archlinuxarm.org",
+        )),
+        MirrorRegion("dk", "Denmark", listOf("http://dk.mirror.archlinuxarm.org")),
+        MirrorRegion("fr", "France", listOf("http://fr.mirror.archlinuxarm.org")),
+        MirrorRegion(
+            "us",
+            "United States",
+            listOf(
+                "https://fl.us.mirror.archlinuxarm.org",
+                "https://ca.us.mirror.archlinuxarm.org",
+                "http://nj.us.mirror.archlinuxarm.org",
+            ),
+        ),
+        MirrorRegion(
+            "world",
+            "Worldwide (geo redirector)",
+            listOf("http://mirror.archlinuxarm.org"),
+        ),
+    )
+
+    /** Presets for Arch Linux x86_64 (the emulator ABI). */
+    val archLinux: List<MirrorRegion> = listOf(
+        MirrorRegion("ch", "Switzerland", listOf("https://mirror.init7.net/archlinux")),
+        MirrorRegion(
+            "cn",
+            "China",
+            listOf(
+                "https://mirrors.tuna.tsinghua.edu.cn/archlinux",
+                "https://mirrors.ustc.edu.cn/archlinux",
+                "https://mirror.sjtu.edu.cn/archlinux",
+                "https://mirrors.nju.edu.cn/archlinux",
+                "https://mirrors.bfsu.edu.cn/archlinux",
+                "https://mirrors.cernet.edu.cn/archlinux",
+                "https://mirrors.aliyun.com/archlinux",
+            ),
+        ),
+        MirrorRegion("de", "Germany", listOf("https://ftp.halifax.rwth-aachen.de/archlinux")),
+        MirrorRegion("nl", "Netherlands", listOf("https://mirror.leaseweb.com/archlinux")),
+        MirrorRegion(
+            "us",
+            "United States",
+            listOf(
+                "https://mirror.rackspace.com/archlinux",
+                "https://mirrors.kernel.org/archlinux",
+            ),
+        ),
+        MirrorRegion(
+            "world",
+            "Worldwide (geo redirector)",
+            listOf("https://geo.mirror.pkgbuild.com"),
+        ),
+    )
+}

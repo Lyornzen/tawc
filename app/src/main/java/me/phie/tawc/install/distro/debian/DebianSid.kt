@@ -80,6 +80,9 @@ internal sealed class DebianSid(
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
+        // No mirrorRegions yet: deb.debian.org is a geo-routed CDN, so a
+        // region pick would only help users behind a blocked CDN.
+        mirrorRegion: String?,
     ) = AptCommon.configure(
         method = method,
         rootfs = rootfs,
