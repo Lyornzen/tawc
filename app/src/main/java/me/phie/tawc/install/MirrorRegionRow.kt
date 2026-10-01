@@ -1,24 +1,37 @@
 package me.phie.tawc.install
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.graphics.Typeface
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.LinearLayout
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import me.phie.tawc.R
+import me.phie.tawc.install.distro.CHINA_MIRROR_REGION_ID
 import me.phie.tawc.install.distro.Distro
 import me.phie.tawc.install.distro.DistroRegistry
+import me.phie.tawc.install.distro.cjkFontCommand
 import java.util.concurrent.Executor
 
 /**
- * Per-install package-mirror row for the Settings distro card: shows the
- * selected region ([Installation.mirrorRegion]) and opens a chooser over
- * the distro's built-in presets (`Distro.mirrorRegions`), plus a
+ * Per-install package-mirror row for the Settings distro card: the
+ * label, a dropdown showing the selected region
+ * ([Installation.mirrorRegion]) and a detail line. The dropdown lists
+ * the distro's built-in presets (`Distro.mirrorRegions`) plus a
  * "Default" entry that clears the choice.
+ *
+ * A dropdown rather than a tappable row: the row used to read
+ * "Package mirror: China" with no affordance at all, so nothing said
+ * the value could be changed (or what the alternatives are).
  *
  * Picking a region rewrites the installed rootfs's mirror config as well
  * as the metadata. `Distro.configure` only ever runs during an install
@@ -26,7 +39,8 @@ import java.util.concurrent.Executor
  * the setting would look applied while every `pacman -S` kept using the
  * old list. The rewrite happens first and the choice is persisted only
  * on success — a region recorded but not applied is the misleading
- * state, and the row then keeps showing what the rootfs actually has.
+ * state, so on failure the dropdown snaps back to what the rootfs
+ * actually has.
  *
  * Rows only make sense for distros with a non-empty
  * [Distro.mirrorRegions]; the caller mounts nothing otherwise. Pacman's
@@ -53,12 +67,19 @@ internal fun buildMirrorRegionRow(
             ?: activity.getString(R.string.settings_mirror_region_default)
 
     val container = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-    val value = TextView(activity).apply {
-        text = activity.getString(R.string.settings_mirror_region, labelFor(installation.mirrorRegion))
-        textSize = 16f
-        setTypeface(typeface, Typeface.BOLD)
+    val row = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
     }
-    container.addView(value, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+    row.addView(
+        TextView(activity).apply {
+            text = activity.getString(R.string.settings_mirror_region_label)
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+        },
+        LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f),
+    )
+    container.addView(row, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
     container.addView(
         TextView(activity).apply {
             text = activity.getString(R.string.settings_mirror_region_detail)
@@ -69,35 +90,90 @@ internal fun buildMirrorRegionRow(
     )
     if (distro == null || regions.isEmpty()) return container
 
-    container.setOnClickListener {
-        val checked = ids.indexOf(installation.mirrorRegion).coerceAtLeast(0)
-        AlertDialog.Builder(activity)
-            .setTitle(R.string.settings_mirror_region_title)
-            .setSingleChoiceItems(ids.map { labelFor(it) }.toTypedArray(), checked) { dialog, which ->
-                dialog.dismiss()
-                val picked = ids[which]
-                if (picked == installation.mirrorRegion) return@setSingleChoiceItems
+    // Re-entrancy guard for the two programmatic selection changes: the
+    // initial one below (suppressed anyway) and the revert on failure,
+    // which must not look like a fresh user pick.
+    var suppress = false
+
+    // What the rootfs actually has. `installation` is a snapshot from when
+    // the screen was built, so it goes stale on the first successful pick —
+    // and with it both the "already selected" short-circuit and the revert
+    // target: a picked-but-not-applied value would otherwise leave the
+    // dropdown claiming a region the mirrorlist does not contain.
+    var applied = installation.mirrorRegion
+
+    val spinner = Spinner(activity).apply {
+        adapter = ArrayAdapter(
+            activity,
+            android.R.layout.simple_spinner_item,
+            ids.map { labelFor(it) },
+        ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        contentDescription = activity.getString(R.string.settings_mirror_region_label)
+        setSelection(ids.indexOf(installation.mirrorRegion).coerceAtLeast(0), false)
+        onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (suppress) return
+                val picked = ids[position]
+                if (picked == applied) return
                 executor.execute {
                     val error = applyMirrorRegion(activity, store, installation, distro, picked)
                     activity.runOnUiThread {
                         if (error == null) {
-                            value.text = activity.getString(
-                                R.string.settings_mirror_region,
-                                labelFor(picked),
-                            )
+                            applied = picked
+                            if (picked == CHINA_MIRROR_REGION_ID) {
+                                showCjkFontHint(activity, distro, labelFor(picked))
+                            }
                         } else {
                             Toast.makeText(
                                 activity,
                                 activity.getString(R.string.settings_mirror_region_failed, error),
                                 Toast.LENGTH_LONG,
                             ).show()
+                            // Back to what the rootfs really has.
+                            suppress = true
+                            setSelection(ids.indexOf(applied).coerceAtLeast(0), false)
+                            suppress = false
                         }
                     }
                 }
             }
-            .show()
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
     }
+    row.addView(spinner, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
     return container
+}
+
+/**
+ * Mirror regions are about download speed; CJK glyphs are a font
+ * package. Users who pick the China preset are exactly the ones who hit
+ * the missing glyphs, so say it once, right after the switch, with the
+ * distro's own command when we know it.
+ */
+private fun showCjkFontHint(activity: Activity, distro: Distro, regionLabel: String) {
+    val command = cjkFontCommand(distro)
+    val message = buildString {
+        append(activity.getString(R.string.settings_mirror_region_cjk_message, regionLabel))
+        append("\n\n")
+        append(command ?: activity.getString(R.string.settings_mirror_region_cjk_unknown))
+    }
+    val builder = AlertDialog.Builder(activity)
+        .setTitle(R.string.settings_mirror_region_cjk_title)
+        .setMessage(message)
+        .setPositiveButton(android.R.string.ok, null)
+    if (command != null) {
+        builder.setNeutralButton(R.string.settings_mirror_region_cjk_copy) { _, _ ->
+            activity.getSystemService(ClipboardManager::class.java)
+                ?.setPrimaryClip(ClipData.newPlainText("tawc-cjk", command))
+            Toast.makeText(
+                activity,
+                R.string.settings_mirror_region_cjk_copied,
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+    builder.show()
 }
 
 /**

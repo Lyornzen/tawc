@@ -1303,11 +1303,22 @@ for Arch x86_64) so both flavours share `ArchPacmanCommon.serverLines`.
   fixed host in the distro's `TarballBootstrap` (ALARM's `.sig` lives
   next to it, and only `fl.us`/`ca.us` carry a valid cert). A region pick
   speeds up package installs, not the initial download.
-- The bootstrap tarball is **not** affected: it always comes from the
-  fixed host in the distro's `TarballBootstrap` (ALARM's `.sig` lives
-  next to it, and only `fl.us`/`ca.us` carry a valid cert). A region
-  pick speeds up package installs, not the initial download.
 
+- The row is a **dropdown** (`Spinner`), not a tappable label: it shows
+  the selected preset inline next to "Package mirror", which is the only
+  affordance that says the value can be changed at all. Picking rewrites
+  and persists exactly as above; on failure the dropdown snaps back to
+  what the rootfs really has, because a setting that claims a region the
+  mirrorlist does not contain is the misleading state.
+- Picking the **China** preset (`CHINA_MIRROR_REGION_ID`) also raises a
+  one-shot reminder that the rootfs still has no CJK font: the mirror
+  only changes where packages come from, so Chinese text renders as boxes
+  until one is installed. The dialog carries the distro's own command
+  (`cjkFontCommand`: `pacman -S noto-fonts-cjk`, `apt-get install -y
+  fonts-noto-cjk`, `xbps-install -S noto-fonts-cjk`) with a
+  copy-to-clipboard action; families we do not know get the generic hint
+  instead of a guess. `CjkFontTest` pins the mapping and checks that a
+  preset labelled China really uses the id the reminder tests for.
 ## Android 14 FGS rules and the broker action path
 
 `startForegroundService()` from a background broadcast receiver is
