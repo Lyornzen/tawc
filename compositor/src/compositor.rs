@@ -98,6 +98,18 @@ pub struct WindowMetadata {
 /// This is what Smithay handler callbacks receive. It also carries
 /// `RenderState` because Smithay's compositor pre-commit hooks require the
 /// same state type that owns protocol handlers.
+/// Refresh rate the compositor advertises before Settings pushes one.
+///
+/// 60 Hz is what every previous build hard-coded, so an app that never
+/// touches the new setting behaves exactly as before.
+const DEFAULT_OUTPUT_REFRESH_MHZ: u32 = 60_000;
+
+/// Bounds for an advertised rate. Below 10 Hz no client stays sane; above
+/// 240 Hz nothing real exists, and a bogus huge value would overflow the
+/// `i32` mHz field `wl_output.mode` carries.
+const MIN_OUTPUT_REFRESH_MHZ: u32 = 10_000;
+const MAX_OUTPUT_REFRESH_MHZ: u32 = 240_000;
+
 pub struct TawcState {
     pub display_handle: DisplayHandle,
     /// Calloop handle, set by `event_loop::run` before any source can fire.
@@ -187,6 +199,16 @@ pub struct TawcState {
     /// Android display metrics passed to `nativeStartCompositor` and then
     /// follows the foreground host, not arbitrary background host resizes.
     pub output_physical_size: (i32, i32),
+
+    /// Refresh rate advertised in the output's single mode, in mHz
+    /// (60000 = 60 Hz). Starts at 60 Hz — what the compositor claimed
+    /// before this was configurable — and is pushed from Settings via
+    /// `nativeSetOutputRefreshRate`, which is where the panel's real
+    /// maximum (120 Hz on the test tablet) comes in. Clients that pace
+    /// themselves by `wl_output.mode` (WebRender, games, frame callbacks)
+    /// render at this rate, so a stale 60 here means a 60 fps ceiling on a
+    /// 120 Hz panel even though Android presents faster.
+    pub output_refresh_mhz: u32,
 
     /// Per-Activity render targets. One entry per Android `CompositorActivity`
     /// that has registered its `SurfaceView`. For phase 0-4 there is at most
@@ -405,6 +427,7 @@ impl TawcState {
             ),
             output_scale,
             output_logical_size: (0, 0),
+            output_refresh_mhz: DEFAULT_OUTPUT_REFRESH_MHZ,
             output_physical_size: (0, 0),
             text_input_state: TextInputState::new(),
             clipboard_pull: None,
@@ -498,7 +521,10 @@ impl TawcState {
         self.output_physical_size = (w, h);
         self.output_logical_size = self.output_scale.logical_size(w, h);
         let previous = self.output.current_mode();
-        let mode = smithay::output::Mode { size: (w, h).into(), refresh: 60_000 };
+        let mode = smithay::output::Mode {
+            size: (w, h).into(),
+            refresh: self.output_refresh_mhz as i32,
+        };
         self.output.change_current_state(
             Some(mode),
             Some(smithay::utils::Transform::Normal),
@@ -513,6 +539,27 @@ impl TawcState {
         if let Some(previous) = previous.filter(|previous| *previous != mode) {
             self.output.delete_mode(previous);
         }
+    }
+
+    /// Adopt a new advertised refresh rate and re-publish the mode.
+    ///
+    /// Implausible values are ignored rather than clamped: a wrong rate is
+    /// worse than the previous one for the clients that trust it, and the
+    /// caller (`CompositorService`) has already picked the value out of the
+    /// panel's own mode list.
+    pub fn set_output_refresh_mhz(&mut self, mhz: u32) {
+        if !(MIN_OUTPUT_REFRESH_MHZ..=MAX_OUTPUT_REFRESH_MHZ).contains(&mhz) {
+            warn!("Ignoring implausible output refresh rate: {} mHz", mhz);
+            return;
+        }
+        if self.output_refresh_mhz == mhz {
+            return;
+        }
+        self.output_refresh_mhz = mhz;
+        // Re-publish so an existing client sees the new rate: the same
+        // "only ever one mode" path a size change takes.
+        self.set_output_mode(self.output_physical_size);
+        info!("output refresh rate: {} mHz", mhz);
     }
 
     /// Move the seat's keyboard focus and the text-input v3 focus to the

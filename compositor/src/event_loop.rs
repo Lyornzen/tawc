@@ -1181,6 +1181,9 @@ fn handle_surface_event(
         SurfaceEvent::OutputScaleChanged { scale } => {
             apply_output_scale(data, OutputScale::new(scale));
         }
+        SurfaceEvent::OutputRefreshChanged { mhz } => {
+            data.set_output_refresh_mhz(mhz);
+        }
         SurfaceEvent::XwaylandChanged { enabled } => {
             crate::xwayland::set_enabled(loop_handle, data, enabled);
         }
