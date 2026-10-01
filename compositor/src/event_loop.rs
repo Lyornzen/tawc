@@ -1051,6 +1051,9 @@ fn render_visible_host(data: &mut TawcState) -> bool {
     if rendered {
         data.frame_count += 1;
         data.last_rendered_toplevels = toplevel_count(data);
+        // After the swap: this frame is on its way to the screen, so any
+        // `wp_presentation` feedback the clients asked for can be answered.
+        render::report_presentation_feedback(data, data.frame_count);
     }
     rendered
 }

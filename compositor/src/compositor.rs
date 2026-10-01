@@ -13,6 +13,7 @@ use smithay::reexports::calloop::{LoopHandle, RegistrationToken};
 use smithay::backend::renderer::utils::with_renderer_surface_state;
 use smithay::backend::renderer::{buffer_type, BufferType};
 use smithay::delegate_dispatch2;
+use smithay::wayland::presentation::PresentationState;
 use smithay::input::{Seat, SeatHandler, SeatState};
 use smithay::input::dnd::DndGrabHandler;
 use smithay::input::keyboard::XkbConfig;
@@ -199,6 +200,13 @@ pub struct TawcState {
     /// Android display metrics passed to `nativeStartCompositor` and then
     /// follows the foreground host, not arbitrary background host resizes.
     pub output_physical_size: (i32, i32),
+
+    /// `wp_presentation` global. Clients that pace themselves by
+    /// presentation feedback — Firefox's Wayland vsync source, `fifo`-style
+    /// frame timing — cannot see how fast the panel really is without it and
+    /// fall back to a fixed 60 Hz timer (visible as `Target Frame Rate: 60`
+    /// in Firefox's `about:support` on a 120 Hz panel).
+    pub presentation: PresentationState,
 
     /// Refresh rate advertised in the output's single mode, in mHz
     /// (60000 = 60 Hz). Starts at 60 Hz — what the compositor claimed
@@ -399,9 +407,13 @@ impl TawcState {
         dh.create_global::<Self, TawcGfxstream, ()>(1, ());
 
         let xwayland_shell_state = XWaylandShellState::new::<Self>(&dh);
+        // CLOCK_MONOTONIC is both what the feedback timestamps below are
+        // taken with and what clients compare them against.
+        let presentation = PresentationState::new::<Self>(&dh, libc::CLOCK_MONOTONIC as u32);
 
         let mut state = Self {
             display_handle: dh,
+            presentation,
             loop_handle: None,
             compositor_state,
             shm_state,
