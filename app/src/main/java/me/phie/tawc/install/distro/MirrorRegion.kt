@@ -100,6 +100,34 @@ internal object MirrorRegions {
     )
 
     /**
+     * Presets for Ubuntu on arm64, which lives on the `ports` archive
+     * (`.../ubuntu-ports`); amd64 would use `archive.ubuntu.com/ubuntu`
+     * bases instead. Entries are archive roots, i.e. the `URIs:` value.
+     *
+     * Ubuntu is not a shipped distro yet — `distro/ubuntu/` is still a
+     * plan (plans/ubuntu-distro.md) — so nothing consumes this table
+     * today. It is here because the region data is the part that has to
+     * be verified against upstream by hand, and it belongs next to the
+     * other families rather than after them.
+     */
+    val ubuntu: List<MirrorRegion> = listOf(
+        MirrorRegion(
+            "cn",
+            "China",
+            listOf(
+                "https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports",
+                "https://mirrors.ustc.edu.cn/ubuntu-ports",
+                "https://mirror.sjtu.edu.cn/ubuntu-ports",
+                "https://mirrors.nju.edu.cn/ubuntu-ports",
+                "https://mirrors.bfsu.edu.cn/ubuntu-ports",
+                "https://mirrors.cernet.edu.cn/ubuntu-ports",
+            ),
+        ),
+        MirrorRegion("nl", "Netherlands", listOf("https://mirror.leaseweb.com/ubuntu-ports")),
+        MirrorRegion("world", "Worldwide", listOf("https://ports.ubuntu.com/ubuntu-ports")),
+    )
+
+    /**
      * Presets for Void Linux. Entries are mirror roots *without*
      * `/current`: the distro appends the release path and, on ports, the
      * architecture subdirectory.

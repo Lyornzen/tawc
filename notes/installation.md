@@ -1294,6 +1294,11 @@ for Arch x86_64) so both flavours share `ArchPacmanCommon.serverLines`.
   be verified to serve the matching tree first (`core.db`,
   `core/os/x86_64/core.db`, `aarch64-repodata`, `binary-arm64/Release`);
   a dead first entry costs every user a round trip per transaction.
+- `MirrorRegions.ubuntu` is the one table with no consumer yet: Ubuntu
+  is still a plan (`plans/ubuntu-distro.md`), and its arm64 archives live
+  on the separate `ports` archive (`.../ubuntu-ports`), so the entries
+  differ from Debian's. It is kept here so the verified region data ships
+  with `distro/ubuntu/` instead of trailing it.
 - The bootstrap tarball is **not** affected: it always comes from the
   fixed host in the distro's `TarballBootstrap` (ALARM's `.sig` lives
   next to it, and only `fl.us`/`ca.us` carry a valid cert). A region pick

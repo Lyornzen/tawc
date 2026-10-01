@@ -159,6 +159,7 @@ class MirrorRegionTest {
             "manjaroArm" to MirrorRegions.manjaroArm,
             "debian" to MirrorRegions.debian,
             "voidLinux" to MirrorRegions.voidLinux,
+            "ubuntu" to MirrorRegions.ubuntu,
         )) {
             assertTrue("$name has no presets", regions.isNotEmpty())
             assertEquals(
