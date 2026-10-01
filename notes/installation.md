@@ -1281,12 +1281,23 @@ for Arch x86_64) so both flavours share `ArchPacmanCommon.serverLines`.
   rewrites `<rootfs>/etc/pacman.d/mirrorlist` through a temp file +
   rename via `runOutside` (app-uid shell for tawcroot/proot, `su` for
   chroot) and only then persists the choice.
-- Regions are Arch-only today. Manjaro ARM declares none (its
-  `arm-testing/` path is release policy, not a hostname swap), Debian
-  and Void none either (both sit behind geo-routed CDNs). The settings
-  row is hidden whenever a distro has no presets.
-- Presets list only hosts verified to serve the matching tree; a dead
-  first entry costs every user a round trip on every transaction.
+- Every shipped distro declares presets, in its own config format:
+  pacman families (`ArchLinuxArm`, `ArchLinuxX86_64`, `ManjaroArm`)
+  render `Server = <base><suffix>` lines, Debian renders the archive root
+  into the deb822 `URIs:` field (one URI per region — apt has no
+  mirror-fallback list), and Void renders one `repository=` line per
+  mirror, which xbps does walk in order.
+- Manjaro ARM's `arm-testing/` channel is part of each mirror *base*, not
+  of the suffix, so picking a region can never move a user off the
+  channel that carries a new enough glibc (see `ManjaroArm`).
+- Adding a preset is a data change in `MirrorRegions`, but the entry must
+  be verified to serve the matching tree first (`core.db`,
+  `core/os/x86_64/core.db`, `aarch64-repodata`, `binary-arm64/Release`);
+  a dead first entry costs every user a round trip per transaction.
+- The bootstrap tarball is **not** affected: it always comes from the
+  fixed host in the distro's `TarballBootstrap` (ALARM's `.sig` lives
+  next to it, and only `fl.us`/`ca.us` carry a valid cert). A region pick
+  speeds up package installs, not the initial download.
 - The bootstrap tarball is **not** affected: it always comes from the
   fixed host in the distro's `TarballBootstrap` (ALARM's `.sig` lives
   next to it, and only `fl.us`/`ca.us` carry a valid cert). A region

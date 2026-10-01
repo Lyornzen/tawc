@@ -8,8 +8,11 @@ package me.phie.tawc.install.distro
  * 404s, so a preset lists several hosts rather than a single "best"
  * one — a stale regional mirror otherwise aborts a whole transaction
  * mid-sync. The repository path after the base differs per repo layout
- * (`$arch/$repo` for ALARM, `$repo/os/$arch` for Arch x86_64), so the
- * distro owns that suffix and this type only carries the bases.
+ * (`$arch/$repo` for ALARM, `$repo/os/$arch` for Arch x86_64,
+ * `arm-testing/$repo/$arch` for Manjaro ARM, `/current/<arch>` for
+ * Void), so the distro owns that suffix and this type only carries the
+ * bases. A distro whose config format takes a single URL (apt's
+ * `URIs:`) uses the first entry and ignores the rest.
  *
  * [id] is persisted in `metadata.json` (`Installation.mirrorRegion`), so
  * it is a frozen value: relabel freely, never rename. `null` there means
@@ -23,13 +26,15 @@ data class MirrorRegion(
 )
 
 /**
- * Built-in mirror presets, grouped by repository layout (ALARM serves a
- * different tree from Arch x86_64, and a host is rarely good for both).
+ * Built-in mirror presets, grouped by repository layout and architecture
+ * (a host that carries ALARM rarely carries Arch x86_64 or Void, and
+ * some carry only one architecture).
  *
  * Only hosts verified to still serve the matching tree are listed —
- * checked with a `core.db` / `core/os/x86_64/core.db` fetch at the time
- * of writing. Keep that rule when adding entries: a dead first entry
- * costs every user a round trip on every transaction. Note that ALARM's
+ * checked with a `core.db` / `core/os/x86_64/core.db` /
+ * `aarch64-repodata` / `binary-arm64/Release` fetch at the time of
+ * writing. Keep that rule when adding entries: a dead first entry costs
+ * every user a round trip on every transaction. Note that ALARM's
  * regional hosts are plain `http://`: only `fl.us` and `ca.us` carry a
  * certificate valid for their own hostname, and pacman verifies package
  * signatures independently of transport (see `ArchLinuxArm`'s default
@@ -72,6 +77,46 @@ internal object MirrorRegions {
             "Worldwide (geo redirector)",
             listOf("http://mirror.archlinuxarm.org"),
         ),
+    )
+
+    /** Presets for Manjaro ARM (aarch64). All paths include `arm-testing`. */
+    val manjaroArm: List<MirrorRegion> = listOf(
+        MirrorRegion("at", "Austria", listOf("https://mirror.alwyzon.net/manjaro/arm-testing")),
+        MirrorRegion("be", "Belgium", listOf("https://mirror.futureweb.be/manjaro/arm-testing")),
+        MirrorRegion("dk", "Denmark", listOf("https://mirrors.dotsrc.org/manjaro/arm-testing")),
+        MirrorRegion("tr", "Türkiye", listOf("https://ftp.linux.org.tr/manjaro/arm-testing")),
+    )
+
+    /**
+     * Presets for Debian (sid). Entries are archive roots, i.e. the
+     * `URIs:` value; apt takes one per region (see [MirrorRegion]).
+     */
+    val debian: List<MirrorRegion> = listOf(
+        MirrorRegion("ch", "Switzerland", listOf("https://mirror.init7.net/debian")),
+        MirrorRegion("cn", "China", listOf("https://mirrors.tuna.tsinghua.edu.cn/debian")),
+        MirrorRegion("nl", "Netherlands", listOf("https://mirror.leaseweb.com/debian")),
+        MirrorRegion("us", "United States", listOf("http://ftp.us.debian.org/debian")),
+        MirrorRegion("world", "Worldwide", listOf("https://ftp.debian.org/debian")),
+    )
+
+    /**
+     * Presets for Void Linux. Entries are mirror roots *without*
+     * `/current`: the distro appends the release path and, on ports, the
+     * architecture subdirectory.
+     */
+    val voidLinux: List<MirrorRegion> = listOf(
+        MirrorRegion(
+            "cn",
+            "China",
+            listOf(
+                "https://mirrors.tuna.tsinghua.edu.cn/voidlinux",
+                "https://mirror.sjtu.edu.cn/voidlinux",
+                "https://mirrors.nju.edu.cn/voidlinux",
+                "https://mirrors.bfsu.edu.cn/voidlinux",
+                "https://mirrors.cernet.edu.cn/voidlinux",
+            ),
+        ),
+        MirrorRegion("world", "Worldwide", listOf("https://repo-default.voidlinux.org")),
     )
 
     /** Presets for Arch Linux x86_64 (the emulator ABI). */

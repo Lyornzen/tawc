@@ -7,6 +7,8 @@ import me.phie.tawc.install.InstallationMethod
 import me.phie.tawc.install.MirrorProxy
 import me.phie.tawc.install.distro.BootstrapFlavor
 import me.phie.tawc.install.distro.Distro
+import me.phie.tawc.install.distro.MirrorRegion
+import me.phie.tawc.install.distro.MirrorRegions
 import me.phie.tawc.install.distro.DistroBootstrap
 import me.phie.tawc.install.distro.TarballBootstrap
 
@@ -58,15 +60,41 @@ internal sealed class VoidLinux(
 
     final override val basePackages: List<String> = VoidCommon.DEFAULT_BASE_PACKAGES
 
+    override val mirrorRegions: List<MirrorRegion> = MirrorRegions.voidLinux
+
+    /** xbps repository URLs for [region]; `null` = the built-in Fastly CDN. */
+    internal fun mirrorConfig(region: MirrorRegion?): List<String> {
+        val bases = region?.servers ?: listOf(VoidCommon.DEFAULT_MIRROR_BASE)
+        return bases.map { VoidCommon.repositoryUrl(it, linuxArch) }
+    }
+
     final override fun configure(
         method: InstallationMethod,
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
-        // No mirrorRegions yet: Void's xbps repository line is a single
-        // URL, and its Fastly CDN mirror is already geo-routed.
         mirrorRegion: String?,
-    ) = VoidCommon.configure(method, rootfs, linuxArch, mirrorProxy, log)
+    ) = VoidCommon.configure(
+        method,
+        rootfs,
+        linuxArch,
+        mirrorProxy,
+        log,
+        mirrorBase = resolveMirrorRegion(mirrorRegion)?.servers?.first()
+            ?: VoidCommon.DEFAULT_MIRROR_BASE,
+    )
+
+    final override fun configureMirrors(
+        method: InstallationMethod,
+        rootfs: String,
+        mirrorRegion: String?,
+        log: (String) -> Unit,
+    ) = VoidCommon.configureMirrors(
+        method,
+        rootfs,
+        mirrorConfig(resolveMirrorRegion(mirrorRegion)),
+        log,
+    )
 
     final override fun initPackageManager(method: InstallationMethod, rootfs: String, log: (String) -> Unit) =
         VoidCommon.initPackageManager(method, rootfs, log)

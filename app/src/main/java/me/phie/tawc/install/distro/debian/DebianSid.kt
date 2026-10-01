@@ -8,6 +8,8 @@ import me.phie.tawc.install.MirrorProxy
 import me.phie.tawc.install.distro.BootstrapFlavor
 import me.phie.tawc.install.distro.Distro
 import me.phie.tawc.install.distro.DistroBootstrap
+import me.phie.tawc.install.distro.MirrorRegion
+import me.phie.tawc.install.distro.MirrorRegions
 import me.phie.tawc.install.distro.PackageBootstrap
 import me.phie.tawc.install.distro.TarballBootstrap
 import me.phie.tawc.install.distro.apt.AptCommon
@@ -75,21 +77,39 @@ internal sealed class DebianSid(
 
     final override val basePackages: List<String> = AptCommon.DEFAULT_BASE_PACKAGES
 
+    override val mirrorRegions: List<MirrorRegion> = MirrorRegions.debian
+
+    /** Archive root for [region]; `null` = the geo-routed CDN. */
+    internal fun mirrorConfig(region: MirrorRegion?): String =
+        region?.servers?.first() ?: REPO_URL
+
     final override fun configure(
         method: InstallationMethod,
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
-        // No mirrorRegions yet: deb.debian.org is a geo-routed CDN, so a
-        // region pick would only help users behind a blocked CDN.
         mirrorRegion: String?,
     ) = AptCommon.configure(
         method = method,
         rootfs = rootfs,
         suite = SUITE,
-        repoUrl = REPO_URL,
+        repoUrl = mirrorConfig(resolveMirrorRegion(mirrorRegion)),
         signedBy = DEBIAN_ARCHIVE_KEYRING,
         mirrorProxy = mirrorProxy,
+        log = log,
+    )
+
+    final override fun configureMirrors(
+        method: InstallationMethod,
+        rootfs: String,
+        mirrorRegion: String?,
+        log: (String) -> Unit,
+    ) = AptCommon.configureMirrors(
+        method = method,
+        rootfs = rootfs,
+        suite = SUITE,
+        repoUrl = mirrorConfig(resolveMirrorRegion(mirrorRegion)),
+        signedBy = DEBIAN_ARCHIVE_KEYRING,
         log = log,
     )
 
