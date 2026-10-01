@@ -111,6 +111,19 @@ const DEFAULT_OUTPUT_REFRESH_MHZ: u32 = 60_000;
 const MIN_OUTPUT_REFRESH_MHZ: u32 = 10_000;
 const MAX_OUTPUT_REFRESH_MHZ: u32 = 240_000;
 
+/// One frame at `mhz`.
+///
+/// Single source for everything that has to agree on how fast the output
+/// runs: the render loop's re-arm interval, the `wp_presentation` refresh
+/// field, and the "is it time to draw again" check. Hard-coding 16 ms here
+/// is what capped the whole pipeline at ~60 fps on a 120 Hz panel — the
+/// timer is the only thing pacing renders, so frame callbacks (and with
+/// them every client's animation) inherited that ceiling.
+pub fn frame_period(mhz: u32) -> std::time::Duration {
+    let clamped = mhz.clamp(MIN_OUTPUT_REFRESH_MHZ, MAX_OUTPUT_REFRESH_MHZ);
+    std::time::Duration::from_nanos(1_000_000_000_000u64 / u64::from(clamped))
+}
+
 pub struct TawcState {
     pub display_handle: DisplayHandle,
     /// Calloop handle, set by `event_loop::run` before any source can fire.

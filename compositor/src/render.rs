@@ -635,9 +635,7 @@ pub fn report_presentation_feedback(state: &TawcState, seq: u64) {
     let Some(visible_space) = state.desktop.visible_space(&state.hosts) else {
         return;
     };
-    let refresh = Refresh::fixed(Duration::from_nanos(
-        1_000_000_000_000u64 / u64::from(state.output_refresh_mhz.max(1)),
-    ));
+    let refresh = Refresh::fixed(crate::compositor::frame_period(state.output_refresh_mhz));
     let time = monotonic_now();
 
     let surfaces: Vec<WlSurface> = visible_space
