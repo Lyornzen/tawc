@@ -13,6 +13,7 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import me.phie.tawc.compositor.NativeBridge
 import me.phie.tawc.install.AllFilesAccess
@@ -327,6 +328,7 @@ class SettingsActivity : AppCompatActivity() {
         R.string.settings_gui_scale,
         Settings.MIN_OUTPUT_SCALE, Settings.MAX_OUTPUT_SCALE, Settings.OUTPUT_SCALE_STEP,
         Settings.outputScale, Settings::snapOutputScale, Settings::formatOutputScale,
+        presets = Settings.OUTPUT_SCALE_PRESETS,
     ) { scale ->
         Settings.outputScale = scale
         NativeBridge.nativeSetOutputScale(scale)
@@ -339,6 +341,11 @@ class SettingsActivity : AppCompatActivity() {
         Settings.terminalScale, Settings::snapTerminalScale, Settings::formatTerminalScale,
     ) { Settings.terminalScale = it }
 
+    /**
+     * Bold value title + slider. [presets], when non-empty, adds a button
+     * that opens a single-choice list of the common values — the slider
+     * stays for anything in between (it spans every 0.25 step).
+     */
     private fun buildScaleSlider(
         titleRes: Int,
         min: Float,
@@ -347,6 +354,7 @@ class SettingsActivity : AppCompatActivity() {
         current: Float,
         snap: (Float) -> Float,
         format: (Float) -> String,
+        presets: List<Float> = emptyList(),
         onChange: (Float) -> Unit,
     ): android.view.View {
         val cardPad = (12 * resources.displayMetrics.density).toInt()
@@ -360,6 +368,15 @@ class SettingsActivity : AppCompatActivity() {
             max = steps
             progress = ((current - min) / step + 0.5f).toInt()
             setPadding(cardPad, cardPad / 2, cardPad, cardPad / 2)
+        }
+        // Selecting a preset goes through the same title/onChange path a
+        // drag does; setting progress fires the listener (fromUser =
+        // false), which only refreshes the title.
+        fun select(scale: Float) {
+            val snapped = snap(scale)
+            slider.progress = ((snapped - min) / step + 0.5f).toInt()
+            title.text = getString(titleRes, format(snapped))
+            onChange(snapped)
         }
         slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
@@ -376,6 +393,23 @@ class SettingsActivity : AppCompatActivity() {
             clipToPadding = false
             addView(title, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(slider, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            if (presets.isEmpty()) return@apply
+            addView(
+                tonalButton(getString(R.string.settings_scale_presets)) {
+                    val checked = presets.indexOfFirst { it == snap(current) }.coerceAtLeast(0)
+                    AlertDialog.Builder(this@SettingsActivity)
+                        .setTitle(titleRes)
+                        .setSingleChoiceItems(
+                            presets.map { format(it) }.toTypedArray(),
+                            checked,
+                        ) { dialog, which ->
+                            dialog.dismiss()
+                            select(presets[which])
+                        }
+                        .show()
+                },
+                LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT),
+            )
         }
     }
 

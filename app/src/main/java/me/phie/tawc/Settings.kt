@@ -40,6 +40,17 @@ object Settings {
     const val MAX_OUTPUT_SCALE = 4.0f
     const val OUTPUT_SCALE_STEP = 0.25f
     const val DEFAULT_OUTPUT_SCALE = 2.0f
+
+    /**
+     * Preset GUI scales offered next to the slider, in display order.
+     * Every entry must sit on the [OUTPUT_SCALE_STEP] grid — the setter
+     * and getter snap, so an off-grid preset would display differently
+     * from the value actually stored — and inside
+     * [MIN_OUTPUT_SCALE]..[MAX_OUTPUT_SCALE], which is also the range
+     * the compositor clamps to. [DEFAULT_OUTPUT_SCALE] is included so
+     * the default is always pickable from the list.
+     */
+    val OUTPUT_SCALE_PRESETS: List<Float> = listOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
     const val MIN_TERMINAL_SCALE = 0.5f
     const val MAX_TERMINAL_SCALE = 2.0f
     const val TERMINAL_SCALE_STEP = 0.1f
