@@ -186,10 +186,19 @@ class MirrorRegionTest {
         }
     }
 
-    /** Every shipped distro offers presets, and they are its own table. */
+    /**
+     * Every shipped distro offers presets, and they are its own table.
+     *
+     * Ubuntu is the exception: its archives are per-architecture (arm64
+     * lives on `ports`, amd64 on the main archive) and
+     * [MirrorRegions.ubuntu] covers arm64 only, so its picker stays
+     * hidden until an amd64 table exists. The key is a literal because
+     * the Ubuntu flavour lands in its own change.
+     */
     @Test
     fun everyDistroOffersItsOwnPresets() {
         for (distro in DistroRegistry.all) {
+            if (distro.key == "ubuntu") continue
             assertTrue(
                 "${distro.key}/${distro.androidAbi} offers no mirror presets",
                 distro.mirrorRegions.isNotEmpty(),

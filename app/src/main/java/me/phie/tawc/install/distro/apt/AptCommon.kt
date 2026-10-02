@@ -52,51 +52,6 @@ internal object AptCommon {
         "systemd-standalone-tmpfiles",
     )
 
-    /** Path TAWC owns inside the rootfs; Debian's own file is removed. */
-    private const val SOURCES_REL = "etc/apt/sources.list.d/tawc.sources"
-
-    /**
-     * deb822 body for [SOURCES_REL]. Extracted so the settings-driven
-     * mirror rewrite below and the install path cannot drift apart.
-     */
-    fun sourcesBody(suite: String, repoUrl: String, signedBy: String): String = listOf(
-        "Types: deb",
-        "URIs: $repoUrl",
-        "Suites: $suite",
-        "Components: main",
-        "Signed-By: $signedBy",
-    ).joinToString("\n")
-
-    /**
-     * Rewrite just the apt source file in an installed rootfs — the
-     * settings-driven counterpart to [configure], which only runs during
-     * an install. Temp file + rename, same rule as the pacman mirrorlist
-     * (a failed write leaves the previous source in place, and no
-     * deletion pattern is involved).
-     */
-    fun configureMirrors(
-        method: InstallationMethod,
-        rootfs: String,
-        suite: String,
-        repoUrl: String,
-        signedBy: String,
-        log: (String) -> Unit,
-    ) {
-        val script = buildString {
-            appendLine("set -eu")
-            appendLine("ROOTFS='$rootfs'")
-            appendLine("TMP=\"\$ROOTFS/$SOURCES_REL.tawc-new\"")
-            appendLine("cat > \"\$TMP\" <<'SRC_EOF'")
-            appendLine(sourcesBody(suite, repoUrl, signedBy))
-            appendLine("SRC_EOF")
-            appendLine("mv -f \"\$TMP\" \"\$ROOTFS/$SOURCES_REL\"")
-        }
-        val result = method.runOutside(script, log)
-        if (!result.ok) {
-            throw IOException("apt sources write failed (exit ${result.exitCode})")
-        }
-    }
-
     fun configure(
         method: InstallationMethod,
         rootfs: String,
@@ -116,8 +71,12 @@ internal object AptCommon {
             appendLine("echo nameserver 8.8.8.8 > \"\$ROOTFS/etc/resolv.conf\"")
             appendLine("rm -f \"\$ROOTFS/etc/apt/sources.list\"")
             appendLine("mkdir -p \"\$ROOTFS/etc/apt/sources.list.d\" \"\$ROOTFS/etc/apt/apt.conf.d\" \"\$ROOTFS/etc/dpkg/dpkg.cfg.d\" \"\$ROOTFS/etc/profile.d\"")
-            appendLine("cat > \"\$ROOTFS/$SOURCES_REL\" <<'SRC_EOF'")
-            appendLine(sourcesBody(suite, effectiveRepoUrl, signedBy))
+            appendLine("cat > \"\$ROOTFS/etc/apt/sources.list.d/tawc.sources\" <<'SRC_EOF'")
+            appendLine("Types: deb")
+            appendLine("URIs: $effectiveRepoUrl")
+            appendLine("Suites: $suite")
+            appendLine("Components: main")
+            appendLine("Signed-By: $signedBy")
             appendLine("SRC_EOF")
             appendLine("rm -f \"\$ROOTFS/etc/apt/sources.list.d/debian.sources\"")
             appendLine("cat > \"\$ROOTFS/etc/apt/apt.conf.d/90tawc\" <<'APT_EOF'")
@@ -205,5 +164,52 @@ internal object AptCommon {
             trimmed.startsWith("Fetched ") ||
             trimmed.matches(Regex("""^\d+% \[.*"""))
         if (!drop) log("apt: $line")
+    }
+
+    /** Path TAWC owns inside the rootfs; Debian's own file is removed. */
+    private const val SOURCES_REL = "etc/apt/sources.list.d/tawc.sources"
+
+    /**
+     * deb822 body for [SOURCES_REL]: one suite, `main`. [configure]
+     * writes the same shape inline for the install path; a region only
+     * picks one archive root, so the rewrite below reuses this form.
+     */
+    fun sourcesBody(suite: String, repoUrl: String, signedBy: String): String = listOf(
+        "Types: deb",
+        "URIs: $repoUrl",
+        "Suites: $suite",
+        "Components: main",
+        "Signed-By: $signedBy",
+    ).joinToString("\n")
+
+    /**
+     * Rewrite just the apt source file in a rootfs — the region
+     * counterpart to [configure], called right after it during an
+     * install and again whenever the settings row changes the region.
+     * Temp file + rename, same rule as the pacman mirrorlist (a failed
+     * write leaves the previous source in place, and no deletion pattern
+     * is involved).
+     */
+    fun configureMirrors(
+        method: InstallationMethod,
+        rootfs: String,
+        suite: String,
+        repoUrl: String,
+        signedBy: String,
+        log: (String) -> Unit,
+    ) {
+        val script = buildString {
+            appendLine("set -eu")
+            appendLine("ROOTFS='$rootfs'")
+            appendLine("TMP=\"\$ROOTFS/$SOURCES_REL.tawc-new\"")
+            appendLine("cat > \"\$TMP\" <<'SRC_EOF'")
+            appendLine(sourcesBody(suite, repoUrl, signedBy))
+            appendLine("SRC_EOF")
+            appendLine("mv -f \"\$TMP\" \"\$ROOTFS/$SOURCES_REL\"")
+        }
+        val result = method.runOutside(script, log)
+        if (!result.ok) {
+            throw IOException("apt sources write failed (exit ${result.exitCode})")
+        }
     }
 }

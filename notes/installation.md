@@ -1276,11 +1276,16 @@ for Arch x86_64) so both flavours share `ArchPacmanCommon.serverLines`.
 - The choice is per-install (`Installation.mirrorRegion`); `null` means
   the default list, so an install that never opens the setting writes
   the exact same mirrorlist as before.
-- `Distro.configure` runs once per install (*Upgrade policy*), so
-  changing the setting calls `Distro.configureMirrors` instead: it
-  rewrites `<rootfs>/etc/pacman.d/mirrorlist` through a temp file +
-  rename via `runOutside` (app-uid shell for tawcroot/proot, `su` for
-  chroot) and only then persists the choice.
+- `Distro.configure` always writes the built-in default: it runs on a
+  rootfs that does not exist yet, and every family writes its own config
+  format. A region therefore goes through `Distro.configureMirrors`,
+  which rewrites `<rootfs>/etc/pacman.d/mirrorlist` (apt: the deb822
+  source file, xbps: the repository conf) through a temp file + rename
+  via `runOutside` (app-uid shell for tawcroot/proot, `su` for chroot).
+  `Installer` makes that call right after `configure` when the install
+  carried a region, and the settings row makes the same call on a live
+  rootfs and only then persists the choice — one write path, so an
+  installed rootfs and a fresh one cannot drift apart.
 - Every shipped distro declares presets, in its own config format:
   pacman families (`ArchLinuxArm`, `ArchLinuxX86_64`, `ManjaroArm`)
   render `Server = <base><suffix>` lines, Debian renders the archive root
@@ -1294,11 +1299,10 @@ for Arch x86_64) so both flavours share `ArchPacmanCommon.serverLines`.
   be verified to serve the matching tree first (`core.db`,
   `core/os/x86_64/core.db`, `aarch64-repodata`, `binary-arm64/Release`);
   a dead first entry costs every user a round trip per transaction.
-- `MirrorRegions.ubuntu` is the one table with no consumer yet: Ubuntu
-  is still a plan (`plans/ubuntu-distro.md`), and its arm64 archives live
-  on the separate `ports` archive (`.../ubuntu-ports`), so the entries
-  differ from Debian's. It is kept here so the verified region data ships
-  with `distro/ubuntu/` instead of trailing it.
+- `MirrorRegions.ubuntu` is the one table with no consumer: every entry
+  is arm64 (`.../ubuntu-ports`), while amd64 archives live on
+  `archive.ubuntu.com/ubuntu`. Wiring the picker up needs an amd64 table
+  as well, so the table ships unused.
 - The bootstrap tarball is **not** affected: it always comes from the
   fixed host in the distro's `TarballBootstrap` (ALARM's `.sig` lives
   next to it, and only `fl.us`/`ca.us` carry a valid cert). A region pick

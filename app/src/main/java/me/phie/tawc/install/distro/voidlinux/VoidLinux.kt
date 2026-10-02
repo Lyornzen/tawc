@@ -73,15 +73,13 @@ internal sealed class VoidLinux(
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
-        mirrorRegion: String?,
     ) = VoidCommon.configure(
         method,
         rootfs,
         linuxArch,
         mirrorProxy,
         log,
-        mirrorBase = resolveMirrorRegion(mirrorRegion)?.servers?.first()
-            ?: VoidCommon.DEFAULT_MIRROR_BASE,
+        mirrorBase = VoidCommon.DEFAULT_MIRROR_BASE,
     )
 
     final override fun configureMirrors(

@@ -201,7 +201,13 @@ class Installer(
         // live entirely in [InstallationMethod.startInside] now —
         // there's nothing to materialise on disk between calls.
         progress(InstallProgress(InstallStage.CONFIGURING, context.getString(R.string.install_progress_configuring_chroot)))
-        distro.configure(method, rootfsPath, mirrorProxy, log, mirrorRegion)
+        distro.configure(method, rootfsPath, mirrorProxy, log)
+        // A picked region replaces the mirror config configure just
+        // wrote — same call the settings row makes on a live rootfs, so
+        // both paths cannot drift apart.
+        if (mirrorRegion != null) {
+            distro.configureMirrors(method, rootfsPath, mirrorRegion, log)
+        }
         // Lay down everything the app ships per-rootfs (libhybris into
         // /usr/lib/hybris, the glvnd vendor JSON, …) as real files via
         // [TawcInstaller]. Must follow distro.configure (which may

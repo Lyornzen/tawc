@@ -168,15 +168,12 @@ interface Distro {
      *   through it via [MirrorProxy.wrap]. Verification endpoints
      *   (`.sig` and friends) are **not** proxied here — see
      *   `notes/cache-proxy.md`.
-     * @param mirrorRegion persisted [Installation.mirrorRegion] id; see
-     *   [resolveMirrorRegion]. Ignored by distros with no [mirrorRegions].
      */
     fun configure(
         method: InstallationMethod,
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
-        mirrorRegion: String? = null,
     )
 
     /**
@@ -198,12 +195,14 @@ interface Distro {
         id?.let { wanted -> mirrorRegions.firstOrNull { it.id == wanted } }
 
     /**
-     * Rewrite the package-mirror config of an already-installed
-     * [rootfs] for [mirrorRegion] (`null` = the built-in default).
-     * Install-time configuration goes through [configure]; this is the
-     * settings-driven path, and the only way a region picked after the
-     * install takes effect — `configure` never runs again for an
-     * existing rootfs (notes/installation.md "Upgrade policy").
+     * Rewrite the package-mirror config of [rootfs] for [mirrorRegion]
+     * (`null` = the built-in default). [configure] always writes the
+     * built-in default — it runs on a rootfs that does not exist yet and
+     * every distro's config format differs — so this is how a region
+     * takes effect: once during the install, right after [configure],
+     * and again whenever the settings screen changes it (`configure`
+     * never runs again for an existing rootfs; notes/installation.md
+     * "Upgrade policy").
      *
      * Distros without selectable mirrors do nothing. Throws on failure
      * so the caller can report it.

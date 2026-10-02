@@ -121,15 +121,7 @@ internal object ArchLinuxArm : Distro {
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
-        mirrorRegion: String?,
-    ) = ArchPacmanCommon.configure(
-        method,
-        rootfs,
-        mirrorConfig(resolveMirrorRegion(mirrorRegion)),
-        IGNORED_PACKAGES,
-        mirrorProxy,
-        log,
-    )
+    ) = ArchPacmanCommon.configure(method, rootfs, mirrorConfig(null), IGNORED_PACKAGES, mirrorProxy, log)
 
     override fun configureMirrors(
         method: InstallationMethod,

@@ -77,27 +77,26 @@ internal sealed class DebianSid(
 
     final override val basePackages: List<String> = AptCommon.DEFAULT_BASE_PACKAGES
 
-    override val mirrorRegions: List<MirrorRegion> = MirrorRegions.debian
-
-    /** Archive root for [region]; `null` = the geo-routed CDN. */
-    internal fun mirrorConfig(region: MirrorRegion?): String =
-        region?.servers?.first() ?: REPO_URL
-
     final override fun configure(
         method: InstallationMethod,
         rootfs: String,
         mirrorProxy: MirrorProxy?,
         log: (String) -> Unit,
-        mirrorRegion: String?,
     ) = AptCommon.configure(
         method = method,
         rootfs = rootfs,
         suite = SUITE,
-        repoUrl = mirrorConfig(resolveMirrorRegion(mirrorRegion)),
+        repoUrl = REPO_URL,
         signedBy = DEBIAN_ARCHIVE_KEYRING,
         mirrorProxy = mirrorProxy,
         log = log,
     )
+
+    override val mirrorRegions: List<MirrorRegion> = MirrorRegions.debian
+
+    /** Archive root for [region]; `null` = the geo-routed CDN. */
+    internal fun mirrorConfig(region: MirrorRegion?): String =
+        region?.servers?.first() ?: REPO_URL
 
     final override fun configureMirrors(
         method: InstallationMethod,
