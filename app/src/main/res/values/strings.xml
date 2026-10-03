@@ -68,6 +68,20 @@
     <string name="settings_mirror_region_failed">Could not change the package mirror: %1$s</string>
     <string name="settings_mirror_region_no_method">the %1$s install method is not available in this build</string>
     <string name="settings_mirror_region_stale">the distro changed state while the mirror was being written</string>
+    <string name="aur_build_label">AUR build support</string>
+    <string name="aur_build_detail">makepkg needs fakeroot, which cannot start on Android: the kernel has no System V IPC. This builds a fakeroot that talks over TCP instead, under /usr/local, leaving the distro\'s own package untouched.</string>
+    <string name="aur_build_action_setup">Set up</string>
+    <string name="aur_build_status_checking">Checking&#8230;</string>
+    <string name="aur_build_status_ready">Ready — fakeroot uses TCP</string>
+    <string name="aur_build_status_ok">This distro\'s fakeroot already works here</string>
+    <string name="aur_build_status_broken">Not set up — makepkg stops at the fakeroot step</string>
+    <string name="aur_build_status_missing">No fakeroot in this rootfs yet</string>
+    <string name="aur_build_status_unknown">Cannot check: unknown package manager for this distro</string>
+    <string name="aur_build_running">Building fakeroot (TCP IPC)&#8230;</string>
+    <string name="aur_build_result_ok">AUR build support is set up</string>
+    <string name="aur_build_result_failed">Setup failed</string>
+    <string name="aur_build_log_empty">(no output)</string>
+    <string name="aur_build_recipe_copied">Setup script copied</string>
     <string name="settings_mirror_region_cjk_title">Install a CJK font?</string>
     <string name="settings_mirror_region_cjk_message">The %1$s mirror only changes where packages are downloaded from. Chinese text needs a CJK font, which this distro does not ship: install one with</string>
     <string name="settings_mirror_region_cjk_copy">Copy command</string>
@@ -188,6 +202,12 @@
     <string name="editor_load_failed">Couldn\'t read the file: %1$s</string>
     <string name="editor_delete_failed">Delete failed.</string>
     <string name="launcher_launch_failed_title">Launching %1$s failed</string>
+    <string name="launcher_deps_title">%1$s is missing libraries</string>
+    <string name="launcher_deps_message">This app links against libraries this distro does not have:\n\n%1$s\n\nInstall them with:\n%2$s</string>
+    <string name="launcher_deps_message_no_command">This app links against libraries this distro does not have:\n\n%1$s\n\nFind the package that provides them (e.g. `pacman -F &lt;name&gt;.so`) and install it from a shell.</string>
+    <string name="launcher_deps_launch_anyway">Launch anyway</string>
+    <string name="launcher_deps_copy">Copy command</string>
+    <string name="launcher_deps_copied">Command copied</string>
 
     <string name="operation_not_in_flight">No operation in flight for \'%1$s\'.</string>
     <string name="operation_channel_name">Operations</string>

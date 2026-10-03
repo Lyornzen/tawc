@@ -26,7 +26,9 @@ import me.phie.tawc.install.InstallationStore
 import me.phie.tawc.install.ManageBindsActivity
 import me.phie.tawc.install.TawcrootMethod
 import me.phie.tawc.install.buildAndoCommitRow
+import me.phie.tawc.install.buildAurBuildRow
 import me.phie.tawc.install.buildMirrorRegionRow
+import me.phie.tawc.install.SysvIpcFix
 import me.phie.tawc.install.distro.DistroRegistry
 import me.phie.tawc.licenses.LicensesActivity
 import me.phie.tawc.ui.buildChildScreen
@@ -55,6 +57,9 @@ class SettingsActivity : AppCompatActivity() {
 
     /** Serializes ando toggle commits so rapid taps land in click order. */
     private val andoCommitExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    /** Serializes the AUR-setup status probe and build for the same reason. */
+    private val aurBuildExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     /** Holds the open-distro card; refilled in [onResume] so a distro
      *  switch or uninstall while we were in the back stack re-renders. */
@@ -115,6 +120,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onDestroy()
         // Queued commits still run; this only lets the worker exit.
         andoCommitExecutor.shutdown()
+        aurBuildExecutor.shutdown()
     }
 
     /**
@@ -164,6 +170,13 @@ class SettingsActivity : AppCompatActivity() {
                         startActivity(ManageBindsActivity.intentForInstall(this, inst.id))
                     },
                     LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = pad / 2 },
+                )
+            }
+            // Only where we know the package manager to drive the fix.
+            if (SysvIpcFix.prerequisites(DistroRegistry.forInstallation(inst)) != null) {
+                body.addView(
+                    buildAurBuildRow(this, store, inst, aurBuildExecutor),
+                    LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = pad },
                 )
             }
         }
