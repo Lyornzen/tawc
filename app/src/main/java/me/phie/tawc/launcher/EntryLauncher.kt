@@ -84,16 +84,88 @@ object EntryLauncher {
             Log.w(TAG, "terminal entry ${entry.id}: native terminal is tawcroot-only, running headless")
         }
         val rootfs = InstallationStore(appContext).rootfsDir(inst.id).absolutePath
+        val label = entry.name.ifEmpty { entry.id }
         val cmd = "${entry.exec} </dev/null >/dev/null 2>&1"
         LAUNCH_SCOPE.launch {
-            runCatching { UserRootfsSession.runInside(appContext, method, rootfs, cmd) }
+            // Pre-flight: Electron apps need system libraries the minimal
+            // rootfs images do not ship, and that failure would land on the
+            // /dev/null stderr below — the tap would simply do nothing. Ask
+            // the guest first ([ElectronDeps]) so the user gets the missing
+            // sonames and the command that installs them.
+            val report = runCatching {
+                val probe = UserRootfsSession.runInside(
+                    appContext,
+                    method,
+                    rootfs,
+                    ElectronDeps.probeScript(entry.exec),
+                )
+                ElectronDeps.report(probe.output, inst.distro)
+            }.getOrNull()
+            if (report != null && report.worthWarning) {
+                warnMissingDeps(appContext, inst, report, entry.exec, label)
+                return@launch
+            }
+            spawn(appContext, method, rootfs, cmd, label)
+        }
+    }
+
+    /**
+     * Launch without the dependency pre-flight — the "launch anyway" escape
+     * in [MissingDepsActivity], which outlives the screen that started the
+     * launch and so reloads the install by id.
+     */
+    fun launchSkippingChecks(appContext: Context, installId: String, exec: String, label: String) {
+        val store = InstallationStore(appContext)
+        val inst = store.load(installId) ?: return
+        val method = InstallationMethod.forKey(appContext, inst.method) ?: return
+        spawn(
+            appContext,
+            method,
+            store.rootfsDir(inst.id).absolutePath,
+            "$exec </dev/null >/dev/null 2>&1",
+            label,
+        )
+    }
+
+    private fun warnMissingDeps(
+        appContext: Context,
+        inst: Installation,
+        report: ElectronDeps.Report,
+        exec: String,
+        label: String,
+    ) {
+        val missing = report.missing.joinToString("\n")
+        val message = report.command
+            ?.let { appContext.getString(R.string.launcher_deps_message, missing, it) }
+            ?: appContext.getString(R.string.launcher_deps_message_no_command, missing)
+        MissingDepsActivity.start(
+            appContext,
+            appContext.getString(R.string.launcher_deps_title, label),
+            message,
+            report.command,
+            inst.id,
+            exec,
+            label,
+        )
+    }
+
+    /** Spawn [command] in the rootfs and surface spawn failures. */
+    private fun spawn(
+        appContext: Context,
+        method: InstallationMethod,
+        rootfs: String,
+        command: String,
+        label: String,
+    ) {
+        LAUNCH_SCOPE.launch {
+            runCatching { UserRootfsSession.runInside(appContext, method, rootfs, command) }
                 .onFailure { e ->
-                    Log.w(TAG, "launch ${entry.id}: $e")
-                    val title = appContext.getString(
-                        R.string.launcher_launch_failed_title,
-                        entry.name.ifEmpty { entry.id },
+                    Log.w(TAG, "launch $label: $e")
+                    LaunchErrorActivity.start(
+                        appContext,
+                        appContext.getString(R.string.launcher_launch_failed_title, label),
+                        e.message ?: e.javaClass.simpleName,
                     )
-                    LaunchErrorActivity.start(appContext, title, e.message ?: e.javaClass.simpleName)
                 }
         }
     }

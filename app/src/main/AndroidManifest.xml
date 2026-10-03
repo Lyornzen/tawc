@@ -185,6 +185,16 @@
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:excludeFromRecents="true" />
 
+        <!-- Missing-library warning shown instead of letting a launch die
+             on it. Same application-context start path as the dialog
+             above. -->
+        <activity
+            android:name=".launcher.MissingDepsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tawc.DialogHost"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:excludeFromRecents="true" />
+
         <!-- Personal .desktop editor for the managed dir
              (root/.local/share/applications). Launched for result by
              the home screen's apps pane; RESULT_OK triggers a rescan. -->
